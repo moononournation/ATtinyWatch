@@ -33,6 +33,10 @@ static uint32_t wdt_microsecond_per_interrupt = DEFAULT_WDT_MICROSECOND; // cali
 static tmElements_t tm;          // a cache of time elements
 static time_t cacheTime;   // the time the cache was updated
 
+static uint32_t sysTime = 0;
+static uint32_t prev_microsecond = 0;
+static timeStatus_t Status = timeNotSet;
+
 static uint32_t wdt_interrupt_count = 0;
 static uint32_t wdt_microsecond = 0;
 static uint32_t prev_sysTime = 0;
@@ -223,10 +227,6 @@ time_t makeTime(tmElements_t &tm) {
 /*=====================================================*/
 /* Low level system time functions  */
 
-static uint32_t sysTime = 0;
-static uint32_t prev_microsecond = 0;
-static timeStatus_t Status = timeNotSet;
-
 time_t now() {
   while (wdt_microsecond - prev_microsecond >= 1000000UL) {
     sysTime++;
@@ -286,13 +286,16 @@ void setup_watchdog(int ii) {
 }
 
 void init_time() {
-  uint32_t t, temp_microsecond_per_interrupt;
+  time_t t;
   EEPROM.get(TIME_ADDR, t);
+  if (t < 1451606400) t = 1451606400; // 2016-01-01
+  setTime(t);
+
+  uint32_t temp_microsecond_per_interrupt;
   EEPROM.get(TIME_ADDR + 4, temp_microsecond_per_interrupt);
-  if ((temp_microsecond_per_interrupt >= 980000UL) && (temp_microsecond_per_interrupt <= 1020000UL)) {
+  if ((temp_microsecond_per_interrupt >= 950000UL) && (temp_microsecond_per_interrupt <= 1050000UL)) {
     wdt_microsecond_per_interrupt = temp_microsecond_per_interrupt;
   }
-  setTime(t);
 
   // init WDT
   setup_watchdog(WDT_INTERVAL);
@@ -325,19 +328,27 @@ uint32_t wdt_get_wdt_microsecond_per_interrupt() {
 void wdt_auto_tune() {
   // skip tuning for the first input after power on
   if (prev_sysTime > 0) {
-    uint32_t temp_microsecond_per_interrupt = (sysTime - prev_sysTime) * 1000000UL / wdt_interrupt_count;
+    uint32_t temp_microsecond_per_interrupt = (sysTime - prev_sysTime);
+    if (temp_microsecond_per_interrupt > 4000000UL) {
+      temp_microsecond_per_interrupt = temp_microsecond_per_interrupt / wdt_interrupt_count * 1000000UL;
+    } else if (temp_microsecond_per_interrupt > 4000UL) {
+      temp_microsecond_per_interrupt = temp_microsecond_per_interrupt * 1000UL / wdt_interrupt_count * 1000UL;
+    } else {
+      temp_microsecond_per_interrupt = temp_microsecond_per_interrupt * 1000000UL / wdt_interrupt_count;
+    }
     // check only tune the time if it have pass enough time range (> 1 hour)
-    // and the tuning range within +/-20
-    if ((wdt_interrupt_count > 3600) && (temp_microsecond_per_interrupt >= 980000UL) && (temp_microsecond_per_interrupt <= 1020000UL)) {
+    if (wdt_interrupt_count > 3600) {
       wdt_microsecond_per_interrupt = temp_microsecond_per_interrupt;
 
       // Reset time and stat data after tune
       prev_microsecond = 0;
       wdt_microsecond = 0;
       wdt_interrupt_count = 0;
+      prev_sysTime = sysTime;
     }
+  } else {
+    prev_sysTime = sysTime;
   }
-  prev_sysTime = sysTime;
   EEPROM.put(TIME_ADDR, sysTime);
   EEPROM.put(TIME_ADDR + 4, wdt_microsecond_per_interrupt);
 }

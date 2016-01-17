@@ -10,7 +10,6 @@
 #define UNUSEDPIN 1
 #define SETBUTTON 3
 #define UPBUTTON  4
-#define BUTTON_DOWN_BUFFER_TIME 160
 
 // enum
 typedef enum {
@@ -36,6 +35,7 @@ static uint32_t display_timeout = 0;
 static run_status_t run_status = normal;
 static uint32_t set_button_pressed_time = 0;
 static uint32_t up_button_pressed_time = 0;
+static uint32_t button_last_handled_time = 0;
 static display_mode_t display_mode = time_mode;
 static display_mode_t last_display_mode = time_mode;
 static bool time_changed = false;
@@ -170,8 +170,8 @@ ISR(PCINT0_vect) {
 }
 
 void check_button() {
-  bool set_button_down = (digitalRead(SETBUTTON) == LOW) || ((millis() - BUTTON_DOWN_BUFFER_TIME) < set_button_pressed_time);
-  bool up_button_down = (digitalRead(UPBUTTON) == LOW) || ((millis() - BUTTON_DOWN_BUFFER_TIME) < up_button_pressed_time);
+  bool set_button_down = (digitalRead(SETBUTTON) == LOW) || (set_button_pressed_time > button_last_handled_time);
+  bool up_button_down = (digitalRead(UPBUTTON) == LOW) || (up_button_pressed_time > button_last_handled_time);
 
   if (set_button_down || up_button_down) { // button down
     set_display_timeout(); // extent display timeout while user input
@@ -185,7 +185,7 @@ void check_button() {
       } else if (set_button_pressed_time > 0) {
         set_button_pressed_time = 0;
       }
-  
+
       if (up_button_down) {
         handle_up_button_pressed();
       } else if (up_button_pressed_time > 0) {
@@ -193,6 +193,8 @@ void check_button() {
       }
     } // not sleeping
   } // button down
+
+  button_last_handled_time = millis();
 }
 
 void handle_set_button_pressed() {
