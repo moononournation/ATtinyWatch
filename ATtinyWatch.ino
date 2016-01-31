@@ -120,7 +120,7 @@ void draw_oled() {
     print_digit(8 * FONT_WIDTH, 0, day(), (selected_field == DAY_FIELD));
 
     // top right corner: battery status
-    uint32_t vcc = readVcc();
+    uint32_t vcc = getVcc();
     // show battery bar from 1.8 V to 3.0 V in 8 pixels, (3000 - 1800) / 8 = 150
     uint8_t bat_level = (vcc >= 3000) ? 8 : ((vcc <= 1800) ? 1 : ((vcc - 1800 + 150) / 150));
     oled.draw_pattern(51, 0, 1, 1, 0b00111111);
@@ -138,10 +138,10 @@ void draw_oled() {
     oled.draw_pattern(4 * FONT_2X_WIDTH + 6, 1, 2, 2, 0b00011000);
     print_digit(4 * FONT_2X_WIDTH + 2 * FONT_WIDTH, 1, second(), (selected_field == SECOND_FIELD));
   } else if (display_mode == debug_mode) { // debug_mode
-    print_debug_value(0, 'I', wdt_get_interrupt_count());
-    print_debug_value(1, 'M', wdt_get_wdt_microsecond_per_interrupt());
-    print_debug_value(2, 'V', readVcc());
-    print_debug_value(3, 'T', readTemp());
+    print_debug_value(0, 'I', wdt_interrupt_count);
+    print_debug_value(1, 'M', wdt_microsecond_per_interrupt);
+    print_debug_value(2, 'V', getVcc());
+    print_debug_value(3, 'T', getTemp());
   } // debug_mode
 }
 

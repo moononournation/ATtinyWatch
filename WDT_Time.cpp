@@ -27,9 +27,6 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
 
-// TODO: dynamic calibrate wdt_microsecond_per_interrupt by current voltage (readVcc) and temperature
-static uint32_t wdt_microsecond_per_interrupt = DEFAULT_WDT_MICROSECOND; // calibrate value
-
 static tmElements_t tm;          // a cache of time elements
 static time_t cacheTime;   // the time the cache was updated
 
@@ -37,7 +34,6 @@ static uint32_t sysTime = 0;
 static uint32_t prev_microsecond = 0;
 static timeStatus_t Status = timeNotSet;
 
-static uint32_t wdt_interrupt_count = 0;
 static uint32_t wdt_microsecond = 0;
 static uint32_t prev_sysTime = 0;
 
@@ -141,15 +137,15 @@ uint16_t year(time_t t) { // the year for the given time
   return tmYearToCalendar(tm.Year);
 }
 
-bool leapYear(uint8_t y) {
-  return ( ((1970 + y) > 0) && !((1970 + y) % 4) && ( ((1970 + y) % 100) || !((1970 + y) % 400) ) );
+bool leapYear(uint16_t y) {
+  return !((1970 + y) % 4) && ( ((1970 + y) % 100) || !((1970 + y) % 400) );
 }
 
-uint8_t getMonthDays(uint8_t y, uint8_t m) {
+uint8_t getMonthDays(uint16_t y, uint8_t m) {
   return ((m == 2) && leapYear(y)) ? 29 : monthDays[m - 1];
 }
 
-uint16_t getYearDays(uint8_t y) {
+uint16_t getYearDays(uint16_t y) {
   return leapYear(y) ? 366 : 365;
 }
 
@@ -163,10 +159,10 @@ void breakTime(time_t timeInput, tmElements_t &tm) {
   // this is a more compact version of the C library localtime function
   // note that year is offset from 1970 !!!
 
-  uint8_t tmp_year = 0;
-  uint8_t tmp_month = 0;
+  uint16_t tmp_year = 0;
+  uint16_t yearLength = 0;
+  uint8_t tmp_month = 1;
   uint8_t monthLength = 0;
-  uint16_t days = 0;
   uint32_t tmp_time = (uint32_t)timeInput;
 
   tm.Second = tmp_time % 60;
@@ -177,24 +173,18 @@ void breakTime(time_t timeInput, tmElements_t &tm) {
   tmp_time /= 24; // now it is days
   tm.Wday = ((tmp_time + 4) % 7) + 1;  // Sunday is day 1
 
-  while ((days += getYearDays(tmp_year)) <= tmp_time) {
+  while ((yearLength = getYearDays(tmp_year)) <= tmp_time) {
+    tmp_time -= yearLength;
     tmp_year++;
   }
   tm.Year = tmp_year; // year is offset from 1970
 
-  days -= getYearDays(tmp_year);
-  tmp_time -= days; // now it is days in this year, starting at 0
-
-  for (tmp_month = 1; tmp_month <= 12; tmp_month++) {
-    monthLength = getMonthDays(tmp_year, tmp_month);
-
-    if (tmp_time >= monthLength) {
+  while ((monthLength = getMonthDays(tmp_year, tmp_month)) <= tmp_time) {
       tmp_time -= monthLength;
-    } else {
-      break;
-    }
+      tmp_month++;
   }
   tm.Month = tmp_month;  // jan is month 1
+
   tm.Day = tmp_time + 1;     // day of month
 }
 
@@ -241,7 +231,7 @@ void setTime(time_t t) {
   prev_microsecond = wdt_microsecond; // restart counting from now (thanks to Korman for this fix)
 }
 
-void setTime(uint8_t hr, uint8_t min, uint8_t sec, uint8_t dy, uint8_t mnth, uint16_t yr) {
+void setTime(uint8_t hr, uint8_t mnt, uint8_t scnd, uint8_t dy, uint8_t mnth, uint16_t yr) {
   // year can be given as full four digit year or two digts (2010 or 10 for 2010);
   //it is converted to years since 1970
   if ( yr > 99)
@@ -252,8 +242,8 @@ void setTime(uint8_t hr, uint8_t min, uint8_t sec, uint8_t dy, uint8_t mnth, uin
   tm.Month = mnth;
   tm.Day = dy;
   tm.Hour = hr;
-  tm.Minute = min;
-  tm.Second = sec;
+  tm.Minute = mnt;
+  tm.Second = scnd;
   setTime(makeTime(tm));
 }
 
@@ -263,7 +253,7 @@ void adjustTime(long adjustment) {
 
 // 0=16ms, 1=32ms,2=64ms,3=128ms,4=250ms,5=500ms
 // 6=1 sec,7=2 sec, 8=4 sec, 9= 8sec
-void setup_watchdog(int ii) {
+void setup_watchdog(uint8_t ii) {
   byte bb;
   int ww;
   if (ii > 9 ) ii = 9;
@@ -316,14 +306,6 @@ ISR(WDT_vect) {
   sleep_enable();
 }
 
-uint32_t wdt_get_interrupt_count() {
-  return wdt_interrupt_count;
-}
-
-uint32_t wdt_get_wdt_microsecond_per_interrupt() {
-  return wdt_microsecond_per_interrupt;
-}
-
 void wdt_auto_tune() {
   // skip tuning for the first input after power on
   if (prev_sysTime > 0) {
@@ -366,9 +348,6 @@ uint16_t readADC() {
 
 
 // Voltage and Temperature related
-static uint16_t accumulatedRawVcc = 0;
-static uint16_t accumulatedRawTemp = 0;
-
 uint16_t getNewAccumulatedValue(uint16_t accumulatedValue, uint16_t value) {
   if (accumulatedValue == 0) {
     return value << 6; // initial value, multiply by 64
@@ -388,7 +367,7 @@ void readRawVcc() {
   accumulatedRawVcc = getNewAccumulatedValue(accumulatedRawVcc, readADC());
 }
 
-uint32_t readVcc() {
+uint32_t getVcc() {
   readRawVcc();
 
   return VOLTAGE_REF / (accumulatedRawVcc >> 6); // calibrated value, average Vcc in millivolts
@@ -402,14 +381,14 @@ void readRawTemp() {
   accumulatedRawTemp = getNewAccumulatedValue(accumulatedRawTemp, readADC());
 }
 
-uint32_t readTemp() {
+uint32_t getTemp() {
   readRawTemp();
 
 //  return accumulatedRawTemp; // uncomment for debug raw value
 
   // Temperature compensation using the chip voltage
   // with 3.0 V VCC is 1 lower than measured with 1.7 V VCC
-  uint32_t vcc = readVcc();
+  uint32_t vcc = getVcc();
   uint16_t compensation = (vcc < 1700) ? 0 : ( (vcc > 3000) ? 1000 : (vcc - 1700) * 10 / 13);
 
   return ((((accumulatedRawTemp >> 3) * 125L) - CHIP_TEMP_OFFSET) * 1000L / CHIP_TEMP_COEFF) + compensation;

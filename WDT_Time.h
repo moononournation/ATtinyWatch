@@ -8,7 +8,7 @@
 
 #define TIME_ADDR 0 // EEPROM address for storing the time you set, it can help restore the time easier after change the battery
 #define WDT_INTERVAL 6 // ~1 second
-#define DEFAULT_WDT_MICROSECOND 1008500UL // put your calibrated value here, should be within +/- 10000 of 1000000 microseconds
+#define DEFAULT_WDT_MICROSECOND 1000000UL // put your calibrated value here, should be within +/- 10000 of 1000000 microseconds
 #define VOLTAGE_REF 1113499UL // put your calibrated value here, should be within +/- 100k(~0.1 v) of 1125300UL (1.1 * 1023 * 1000)
 // Calibration of the temperature sensor has to be changed for your own ATtiny85
 // per tech note: http://www.atmel.com/Images/doc8108.pdf
@@ -60,7 +60,7 @@ extern "C++" {
     uint8_t Wday;   // day of week, sunday is day 1
     uint8_t Day;
     uint8_t Month;
-    uint8_t Year;   // offset from 1970;
+    uint16_t Year;   // offset from 1970;
   }   tmElements_t, TimeElements, *tmElementsPtr_t;
 
   //convenience macros to convert to and from tm years
@@ -128,7 +128,7 @@ extern "C++" {
   uint16_t year();            // the full four digit year: (2009, 2010 etc)
   uint16_t year(time_t t);    // the year for the given time
 
-  uint8_t getMonthDays(uint8_t y, uint8_t m);
+  uint8_t getMonthDays(uint16_t y, uint8_t m);
 
   time_t  now();              // return the current time as seconds since Jan 1 1970
   void    setTime(time_t t);
@@ -153,13 +153,18 @@ extern "C++" {
 void init_time();
 
 /* WDT and power related */
+// TODO: dynamic calibrate wdt_microsecond_per_interrupt by current voltage (readVcc) and temperature
+static uint32_t wdt_microsecond_per_interrupt = DEFAULT_WDT_MICROSECOND; // calibrate value
+static uint32_t wdt_interrupt_count = 0;
 void wdt_setup();
-uint32_t wdt_get_interrupt_count();
-uint32_t wdt_get_wdt_microsecond_per_interrupt();
 void wdt_auto_tune();
 void system_sleep();
+
+// Voltage and Temperature related
+static uint16_t accumulatedRawVcc = 0;
+static uint16_t accumulatedRawTemp = 0;
 void readRawVcc();
-uint32_t readVcc();
+uint32_t getVcc();
 void readRawTemp();
-uint32_t readTemp();
+uint32_t getTemp();
 
