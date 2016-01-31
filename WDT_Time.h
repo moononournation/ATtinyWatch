@@ -32,9 +32,6 @@ typedef unsigned long time_t;
 
 static  const uint8_t monthDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}; // API starts months from 1, this array starts from 0
 
-// leap year calulator expects year argument as years offset from 1970
-#define LEAP_YEAR(Y)          ( ((1970+Y)>0) && !((1970+Y)%4) && ( ((1970+Y)%100) || !((1970+Y)%400) ) )
-
 // This ugly hack allows us to define C++ overloaded functions, when included
 // from within an extern "C", as newlib's sys/stat.h does.  Actually it is
 // intended to include "time.h" from the C library (on ARM, but AVR does not
@@ -110,32 +107,32 @@ extern "C++" {
 
   /*============================================================================*/
   /*  time and date functions   */
-  int     hour();            // the hour now
-  int     hour(time_t t);    // the hour for the given time
-  int     hourFormat12();    // the hour now in 12 hour format
-  int     hourFormat12(time_t t); // the hour for the given time in 12 hour format
-  uint8_t isAM();            // returns true if time now is AM
-  uint8_t isAM(time_t t);    // returns true the given time is AM
-  uint8_t isPM();            // returns true if time now is PM
-  uint8_t isPM(time_t t);    // returns true the given time is PM
-  int     minute();          // the minute now
-  int     minute(time_t t);  // the minute for the given time
-  int     second();          // the second now
-  int     second(time_t t);  // the second for the given time
-  int     day();             // the day now
-  int     day(time_t t);     // the day for the given time
-  int     weekday();         // the weekday now (Sunday is day 1)
-  int     weekday(time_t t); // the weekday for the given time
-  int     month();           // the month now  (Jan is month 1)
-  int     month(time_t t);   // the month for the given time
-  int     year();            // the full four digit year: (2009, 2010 etc)
-  int     year(time_t t);    // the year for the given time
+  uint8_t  hour();            // the hour now
+  uint8_t  hour(time_t t);    // the hour for the given time
+  uint8_t  hourFormat12();    // the hour now in 12 hour format
+  uint8_t  hourFormat12(time_t t); // the hour for the given time in 12 hour format
+  bool     isAM();            // returns true if time now is AM
+  bool     isAM(time_t t);    // returns true the given time is AM
+  bool     isPM();            // returns true if time now is PM
+  bool     isPM(time_t t);    // returns true the given time is PM
+  uint8_t  minute();          // the minute now
+  uint8_t  minute(time_t t);  // the minute for the given time
+  uint8_t  second();          // the second now
+  uint8_t  second(time_t t);  // the second for the given time
+  uint8_t  day();             // the day now
+  uint8_t  day(time_t t);     // the day for the given time
+  uint8_t  weekday();         // the weekday now (Sunday is day 1)
+  uint8_t  weekday(time_t t); // the weekday for the given time
+  uint8_t  month();           // the month now  (Jan is month 1)
+  uint8_t  month(time_t t);   // the month for the given time
+  uint16_t year();            // the full four digit year: (2009, 2010 etc)
+  uint16_t year(time_t t);    // the year for the given time
 
   uint8_t getMonthDays(uint8_t y, uint8_t m);
 
-  time_t now();              // return the current time as seconds since Jan 1 1970
+  time_t  now();              // return the current time as seconds since Jan 1 1970
   void    setTime(time_t t);
-  void    setTime(int hr, int min, int sec, int day, int month, int yr);
+  void    setTime(uint8_t hr, uint8_t min, uint8_t sec, uint8_t day, uint8_t month, uint16_t yr);
   void    adjustTime(long adjustment);
 
   /* date strings */

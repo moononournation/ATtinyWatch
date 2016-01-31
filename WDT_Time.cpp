@@ -48,20 +48,20 @@ void refreshCache(time_t t) {
   }
 }
 
-int hour() { // the hour now
+uint8_t hour() { // the hour now
   return hour(now());
 }
 
-int hour(time_t t) { // the hour for the given time
+uint8_t hour(time_t t) { // the hour for the given time
   refreshCache(t);
   return tm.Hour;
 }
 
-int hourFormat12() { // the hour now in 12 hour format
+uint8_t hourFormat12() { // the hour now in 12 hour format
   return hourFormat12(now());
 }
 
-int hourFormat12(time_t t) { // the hour for the given time in 12 hour format
+uint8_t hourFormat12(time_t t) { // the hour for the given time in 12 hour format
   refreshCache(t);
   if ( tm.Hour == 0 )
     return 12; // 12 midnight
@@ -71,79 +71,88 @@ int hourFormat12(time_t t) { // the hour for the given time in 12 hour format
     return tm.Hour ;
 }
 
-uint8_t isAM() { // returns true if time now is AM
+bool isAM() { // returns true if time now is AM
   return !isPM(now());
 }
 
-uint8_t isAM(time_t t) { // returns true if given time is AM
+bool isAM(time_t t) { // returns true if given time is AM
   return !isPM(t);
 }
 
-uint8_t isPM() { // returns true if PM
+bool isPM() { // returns true if PM
   return isPM(now());
 }
 
-uint8_t isPM(time_t t) { // returns true if PM
+bool isPM(time_t t) { // returns true if PM
   return (hour(t) >= 12);
 }
 
-int minute() {
+uint8_t minute() {
   return minute(now());
 }
 
-int minute(time_t t) { // the minute for the given time
+uint8_t minute(time_t t) { // the minute for the given time
   refreshCache(t);
   return tm.Minute;
 }
 
-int second() {
+uint8_t second() {
   return second(now());
 }
 
-int second(time_t t) {  // the second for the given time
+uint8_t second(time_t t) {  // the second for the given time
   refreshCache(t);
   return tm.Second;
 }
 
-int day() {
+uint8_t day() {
   return (day(now()));
 }
 
-int day(time_t t) { // the day for the given time (0-6)
+uint8_t day(time_t t) { // the day for the given time (0-6)
   refreshCache(t);
   return tm.Day;
 }
 
-int weekday() {   // Sunday is day 1
-  return  weekday(now());
+uint8_t weekday() {   // Sunday is day 1
+  return weekday(now());
 }
 
-int weekday(time_t t) {
+uint8_t weekday(time_t t) {
   refreshCache(t);
   return tm.Wday;
 }
 
-int month() {
+uint8_t month() {
   return month(now());
 }
 
-int month(time_t t) {  // the month for the given time
+uint8_t month(time_t t) {  // the month for the given time
   refreshCache(t);
   return tm.Month;
 }
 
-int year() {  // as in Processing, the full four digit year: (2009, 2010 etc)
+uint16_t year() {  // as in Processing, the full four digit year: (2009, 2010 etc)
   return year(now());
 }
 
-int year(time_t t) { // the year for the given time
+uint16_t year(time_t t) { // the year for the given time
   refreshCache(t);
   return tmYearToCalendar(tm.Year);
 }
 
-uint8_t getMonthDays(uint8_t y, uint8_t m) {
-  return ((m == 2) && LEAP_YEAR(y)) ? 29 : monthDays[m - 1];
+bool leapYear(uint8_t y) {
+  return ( ((1970 + y) > 0) && !((1970 + y) % 4) && ( ((1970 + y) % 100) || !((1970 + y) % 400) ) );
 }
+
+uint8_t getMonthDays(uint8_t y, uint8_t m) {
+  return ((m == 2) && leapYear(y)) ? 29 : monthDays[m - 1];
+}
+
+uint16_t getYearDays(uint8_t y) {
+  return leapYear(y) ? 366 : 365;
+}
+
 
 /*============================================================================*/
 /* functions to convert to and from system time */
@@ -154,44 +163,39 @@ void breakTime(time_t timeInput, tmElements_t &tm) {
   // this is a more compact version of the C library localtime function
   // note that year is offset from 1970 !!!
 
-  uint8_t year;
-  uint8_t month, monthLength;
-  uint32_t time;
-  unsigned long days;
+  uint8_t tmp_year = 0;
+  uint8_t tmp_month = 0;
+  uint8_t monthLength = 0;
+  uint16_t days = 0;
+  uint32_t tmp_time = (uint32_t)timeInput;
 
-  time = (uint32_t)timeInput;
-  tm.Second = time % 60;
-  time /= 60; // now it is minutes
-  tm.Minute = time % 60;
-  time /= 60; // now it is hours
-  tm.Hour = time % 24;
-  time /= 24; // now it is days
-  tm.Wday = ((time + 4) % 7) + 1;  // Sunday is day 1
+  tm.Second = tmp_time % 60;
+  tmp_time /= 60; // now it is minutes
+  tm.Minute = tmp_time % 60;
+  tmp_time /= 60; // now it is hours
+  tm.Hour = tmp_time % 24;
+  tmp_time /= 24; // now it is days
+  tm.Wday = ((tmp_time + 4) % 7) + 1;  // Sunday is day 1
 
-  year = 0;
-  days = 0;
-  while ((unsigned)(days += (LEAP_YEAR(year) ? 366 : 365)) <= time) {
-    year++;
+  while ((days += getYearDays(tmp_year)) <= tmp_time) {
+    tmp_year++;
   }
-  tm.Year = year; // year is offset from 1970
+  tm.Year = tmp_year; // year is offset from 1970
 
-  days -= LEAP_YEAR(year) ? 366 : 365;
-  time  -= days; // now it is days in this year, starting at 0
+  days -= getYearDays(tmp_year);
+  tmp_time -= days; // now it is days in this year, starting at 0
 
-  days = 0;
-  month = 1;
-  monthLength = 0;
-  for (month = 1; month <= 12; month++) {
-    monthLength = getMonthDays(year, month);
+  for (tmp_month = 1; tmp_month <= 12; tmp_month++) {
+    monthLength = getMonthDays(tmp_year, tmp_month);
 
-    if (time >= monthLength) {
-      time -= monthLength;
+    if (tmp_time >= monthLength) {
+      tmp_time -= monthLength;
     } else {
       break;
     }
   }
-  tm.Month = month;  // jan is month 1
-  tm.Day = time + 1;     // day of month
+  tm.Month = tmp_month;  // jan is month 1
+  tm.Day = tmp_time + 1;     // day of month
 }
 
 time_t makeTime(tmElements_t &tm) {
@@ -199,31 +203,26 @@ time_t makeTime(tmElements_t &tm) {
   // note year argument is offset from 1970 (see macros in time.h to convert to other formats)
   // previous version used full four digit year (or digits since 2000),i.e. 2009 was 2009 or 9
 
-  int i;
-  uint32_t seconds;
+  uint8_t i;
+  uint32_t seconds = 0;
+  uint16_t days = 0;
 
   // seconds from 1970 till 1 jan 00:00:00 of the given year
-  seconds = tm.Year * (SECS_PER_DAY * 365);
   for (i = 0; i < tm.Year; i++) {
-    if (LEAP_YEAR(i)) {
-      seconds +=  SECS_PER_DAY;   // add extra days for leap years
-    }
+    days += getYearDays(i);
   }
 
   // add days for this year, months start from 1
   for (i = 1; i < tm.Month; i++) {
-    if ( (i == 2) && LEAP_YEAR(tm.Year)) {
-      seconds += SECS_PER_DAY * 29;
-    } else {
-      seconds += SECS_PER_DAY * monthDays[i - 1]; //monthDay array starts from 0
-    }
+    days += getMonthDays(tm.Year, i);
   }
-  seconds += (tm.Day - 1) * SECS_PER_DAY;
+  seconds += (days + tm.Day - 1) * SECS_PER_DAY;
   seconds += tm.Hour * SECS_PER_HOUR;
   seconds += tm.Minute * SECS_PER_MIN;
   seconds += tm.Second;
   return (time_t)seconds;
 }
+
 /*=====================================================*/
 /* Low level system time functions  */
 
@@ -242,7 +241,7 @@ void setTime(time_t t) {
   prev_microsecond = wdt_microsecond; // restart counting from now (thanks to Korman for this fix)
 }
 
-void setTime(int hr, int min, int sec, int dy, int mnth, int yr) {
+void setTime(uint8_t hr, uint8_t min, uint8_t sec, uint8_t dy, uint8_t mnth, uint16_t yr) {
   // year can be given as full four digit year or two digts (2010 or 10 for 2010);
   //it is converted to years since 1970
   if ( yr > 99)
@@ -328,17 +327,12 @@ uint32_t wdt_get_wdt_microsecond_per_interrupt() {
 void wdt_auto_tune() {
   // skip tuning for the first input after power on
   if (prev_sysTime > 0) {
-    uint32_t temp_microsecond_per_interrupt = (sysTime - prev_sysTime);
-    if (temp_microsecond_per_interrupt > 4000000UL) {
-      temp_microsecond_per_interrupt = temp_microsecond_per_interrupt / wdt_interrupt_count * 1000000UL;
-    } else if (temp_microsecond_per_interrupt > 4000UL) {
-      temp_microsecond_per_interrupt = temp_microsecond_per_interrupt * 1000UL / wdt_interrupt_count * 1000UL;
-    } else {
-      temp_microsecond_per_interrupt = temp_microsecond_per_interrupt * 1000000UL / wdt_interrupt_count;
-    }
     // check only tune the time if it have pass enough time range (> 1 hour)
     if (wdt_interrupt_count > 3600) {
-      wdt_microsecond_per_interrupt = temp_microsecond_per_interrupt;
+      // calculation equation: wdt_microsecond_per_interrupt = (sysTime - prev_sysTime) / wdt_interrupt_count * 1,000,000 micro second
+      // rephase equation to use a maximum factor (3579) to retain significant value and avoid overflow
+      // factor allow 20% adjustment: 2^32 / 1.2 / 1000000 = 3579
+      wdt_microsecond_per_interrupt = 3579 * 1000000 / wdt_interrupt_count * (sysTime - prev_sysTime) / 3579;
 
       // Reset time and stat data after tune
       prev_microsecond = 0;
@@ -411,7 +405,7 @@ void readRawTemp() {
 uint32_t readTemp() {
   readRawTemp();
 
-  return accumulatedRawTemp; // uncomment for debug raw value
+//  return accumulatedRawTemp; // uncomment for debug raw value
 
   // Temperature compensation using the chip voltage
   // with 3.0 V VCC is 1 lower than measured with 1.7 V VCC

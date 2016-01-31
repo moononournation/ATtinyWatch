@@ -4,6 +4,9 @@
  * SSD1306 data sheet: https://www.adafruit.com/datasheets/SSD1306.pdf
  */
 #include <TinyWireM.h>
+#include "font.h"
+#include "font_2x.h"
+//#include "font_3x.h"
 
 // custom I2C address by define SSD1306_I2C_ADDR
 #ifndef SSD1306_I2C_ADDR
@@ -43,7 +46,8 @@ class SSD1306 : public Print {
     void set_invert_color(bool set_invert);
     void set_font_size(uint8_t set_font_size);
 
-    void draw_pattern(uint8_t set_col, uint8_t set_page, uint8_t width, uint8_t pattern);
+    void draw_pattern(uint8_t width, uint8_t pattern);
+    void draw_pattern(uint8_t set_col, uint8_t set_page, uint8_t width, uint8_t height, uint8_t pattern);
     void print_string(uint8_t set_col, uint8_t set_page, const char str[]);
 
     void off();

@@ -6,8 +6,20 @@
 #include <avr/pgmspace.h>
 #include <TinyWireM.h>
 #include "ssd1306.h"
-#include "font.h"
-#include "font_3x.h"
+
+#ifndef FONT_2X_WIDTH
+  #define FONT_2X_WIDTH 0
+  #define FONT_2X_RANGE_START 0
+  #define FONT_2X_RANGE_END 0
+  static const uint8_t font_2x_bitmap[] PROGMEM = {};
+#endif
+
+#ifndef FONT_3X_WIDTH
+  #define FONT_3X_WIDTH 0
+  #define FONT_3X_RANGE_START 0
+  #define FONT_3X_RANGE_END 0
+  static const uint8_t font_3x_bitmap[] PROGMEM = {};
+#endif
 
 /*
  * Software Configuration, data sheet page 64
@@ -143,13 +155,20 @@ void SSD1306::set_pos(uint8_t set_col, uint8_t set_page) {
   page = set_page;
 }
 
-void SSD1306::draw_pattern(uint8_t col, uint8_t page, uint8_t width, uint8_t pattern) {
-  set_area(col, page, width, 0);
+void SSD1306::draw_pattern(uint8_t width, uint8_t pattern) {
+  draw_pattern(col, page, width, 1, pattern);
+}
+
+void SSD1306::draw_pattern(uint8_t set_col, uint8_t set_page, uint8_t width, uint8_t height, uint8_t pattern) {
+  set_area(set_col, set_page, width, height - 1);
   ssd1306_send_data_start();
-  for (uint8_t i = 0; i < width; i++) {
+  for (uint8_t i = 0; i < (width * height); i++) {
     ssd1306_send_data_byte(pattern);
   }
   ssd1306_send_data_stop();
+
+  col = set_col + width;
+  page = set_page;
 }
 
 void SSD1306::set_invert_color(bool set_invert) {
@@ -163,6 +182,11 @@ void SSD1306::set_font_size(uint8_t set_size) {
     font_volume = 1 * FONT_WIDTH;
     ascii_code_start = FONT_RANGE_START;
     ascii_code_end = FONT_RANGE_END;
+  } else if (set_size == 2) {
+    font_width = FONT_2X_WIDTH;
+    font_volume = 2 * FONT_2X_WIDTH;
+    ascii_code_start = FONT_2X_RANGE_START;
+    ascii_code_end = FONT_2X_RANGE_END;
   } else { // (font_size == 3)
     font_width = FONT_3X_WIDTH;
     font_volume = 3 * FONT_3X_WIDTH;
@@ -182,7 +206,13 @@ size_t SSD1306::write(uint8_t c) {
   ssd1306_send_data_start();
   for (uint8_t i = 0; i < font_volume; i++)
   {
-    data = (font_size == 1) ? pgm_read_byte_near(&font_bitmap[offset++]) : pgm_read_byte_near(&font_3x_bitmap[offset++]);
+    if (font_size == 1) {
+      data = pgm_read_byte_near(&font_bitmap[offset++]);      
+    } else if (font_size == 2) {
+      data = pgm_read_byte_near(&font_2x_bitmap[offset++]);      
+    } else { // (font_size == 3)
+      data = pgm_read_byte_near(&font_3x_bitmap[offset++]);
+    }
     if (invert_color) data = ~ data; // invert
     ssd1306_send_data_byte(data);
   }
