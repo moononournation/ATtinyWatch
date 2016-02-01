@@ -138,8 +138,8 @@ void draw_oled() {
     oled.draw_pattern(4 * FONT_2X_WIDTH + 6, 1, 2, 2, 0b00011000);
     print_digit(4 * FONT_2X_WIDTH + 2 * FONT_WIDTH, 1, second(), (selected_field == SECOND_FIELD));
   } else if (display_mode == debug_mode) { // debug_mode
-    print_debug_value(0, 'I', wdt_interrupt_count);
-    print_debug_value(1, 'M', wdt_microsecond_per_interrupt);
+    print_debug_value(0, 'I', get_wdt_interrupt_count());
+    print_debug_value(1, 'M', get_wdt_microsecond_per_interrupt());
     print_debug_value(2, 'V', getVcc());
     print_debug_value(3, 'T', getTemp());
   } // debug_mode

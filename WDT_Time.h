@@ -153,12 +153,11 @@ extern "C++" {
 void init_time();
 
 /* WDT and power related */
-// TODO: dynamic calibrate wdt_microsecond_per_interrupt by current voltage (readVcc) and temperature
-static uint32_t wdt_microsecond_per_interrupt = DEFAULT_WDT_MICROSECOND; // calibrate value
-static uint32_t wdt_interrupt_count = 0;
 void wdt_setup();
 void wdt_auto_tune();
 void system_sleep();
+uint32_t get_wdt_microsecond_per_interrupt(); // debug use only
+uint32_t get_wdt_interrupt_count(); // debug use only
 
 // Voltage and Temperature related
 static uint16_t accumulatedRawVcc = 0;

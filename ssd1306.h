@@ -14,16 +14,29 @@
 #endif
 
 // custom screen resolution by define SCREEN128X64, SCREEN128X32 or SCREED64X32 (default)
+//#define SCREEN_128X64
+//#define SCREEN_128X32
+//#define SCREEN_64X48 // not tested
+#define SCREEN_64X32
+
 #ifdef SCREEN_128X64
   #define WIDTH 0x0100
-  #define PAGES 0x8
-#elif SCREEN_128X32
+  #define PAGES 0x08
+#else
+#ifdef SCREEN_128X32
   #define WIDTH 0x0100
   #define PAGES 0x04
+#else
+#ifdef SCREEN_64X48
+  #define WIDTH 0x40
+  #define XOFFSET 0x20
+  #define PAGES 0x06
 #else //SCREED_64X32
   #define WIDTH 0x40
   #define XOFFSET 0x20
   #define PAGES 0x04
+#endif
+#endif
 #endif
 
 class SSD1306 : public Print {

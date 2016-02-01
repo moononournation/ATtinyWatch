@@ -38,9 +38,9 @@ static const uint8_t ssd1306_configuration[] PROGMEM = {
   0xA1,         // Set Segment re-map, mirror, A0/A1
   0xC8,         // Set COM Output Scan Direction, flip, C0/C8
 
-#ifdef SCREEN_128X64
+#ifdef SCREEN_128X32
   0xDA, 0x02,   // Set COM Pins hardware configuration, Sequential
-#else // SCREEN_128X32 / SCREEN_64X32
+#else // SCREEN_128X64 / SCREEN_64X32
   0xDA, 0x12,   // Set Com Pins hardware configuration, Alternative
 #endif
 

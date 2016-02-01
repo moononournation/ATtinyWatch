@@ -251,6 +251,11 @@ void adjustTime(long adjustment) {
   sysTime += adjustment;
 }
 
+/* WDT and power related */
+// TODO: dynamic calibrate wdt_microsecond_per_interrupt by current voltage (readVcc) and temperature
+uint32_t wdt_microsecond_per_interrupt = DEFAULT_WDT_MICROSECOND; // calibrate value
+uint32_t wdt_interrupt_count = 0;
+
 // 0=16ms, 1=32ms,2=64ms,3=128ms,4=250ms,5=500ms
 // 6=1 sec,7=2 sec, 8=4 sec, 9= 8sec
 void setup_watchdog(uint8_t ii) {
@@ -338,6 +343,15 @@ void system_sleep() {
   sbi(ADCSRA, ADEN);                   // switch Analog to Digitalconverter ON
 }
 
+uint32_t get_wdt_microsecond_per_interrupt() {
+  return wdt_microsecond_per_interrupt;
+}
+uint32_t get_wdt_interrupt_count() {
+  return wdt_interrupt_count;
+}
+
+
+// Voltage and Temperature related
 // Common code for both sources of an ADC conversion
 uint16_t readADC() {
   ADCSRA |= _BV(ADSC); // Start conversion
@@ -345,9 +359,6 @@ uint16_t readADC() {
   return ADC;
 }
 
-
-
-// Voltage and Temperature related
 uint16_t getNewAccumulatedValue(uint16_t accumulatedValue, uint16_t value) {
   if (accumulatedValue == 0) {
     return value << 6; // initial value, multiply by 64
