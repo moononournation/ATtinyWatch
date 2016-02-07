@@ -280,6 +280,9 @@ void setup_watchdog(uint8_t ii) {
 }
 
 void init_time() {
+  // init WDT
+  setup_watchdog(WDT_INTERVAL);
+
   time_t t;
   EEPROM.get(TIME_ADDR, t);
   if (t < 1451606400) t = 1451606400; // 2016-01-01
@@ -290,9 +293,6 @@ void init_time() {
   if ((temp_microsecond_per_interrupt >= 950000UL) && (temp_microsecond_per_interrupt <= 1050000UL)) {
     wdt_microsecond_per_interrupt = temp_microsecond_per_interrupt;
   }
-
-  // init WDT
-  setup_watchdog(WDT_INTERVAL);
 }
 
 // WDT interrupt event function
@@ -331,16 +331,18 @@ void wdt_auto_tune() {
     prev_sysTime = sysTime;
   }
   EEPROM.put(TIME_ADDR, sysTime);
+  delay(5); // wait EEPROM write finish
   EEPROM.put(TIME_ADDR + 4, wdt_microsecond_per_interrupt);
+  delay(5); // wait EEPROM write finish
 }
 
 // set system into the sleep state
-// system wakes up when wtchdog is timed out
+// system wakes up when watchdog is timed out
 void system_sleep() {
-  cbi(ADCSRA, ADEN);                   // switch Analog to Digitalconverter OFF
+  cbi(ADCSRA, ADEN);                   // switch Analog to Digital converter OFF
   set_sleep_mode(SLEEP_MODE_PWR_DOWN); // sleep mode is set here
   sleep_mode();                        // System actually sleeps here
-  sbi(ADCSRA, ADEN);                   // switch Analog to Digitalconverter ON
+  sbi(ADCSRA, ADEN);                   // switch Analog to Digital converter ON
 }
 
 uint32_t get_wdt_microsecond_per_interrupt() {
@@ -392,10 +394,13 @@ void readRawTemp() {
   accumulatedRawTemp = getNewAccumulatedValue(accumulatedRawTemp, readADC());
 }
 
+uint32_t getRawTemp() {
+  readRawTemp();
+  return accumulatedRawTemp;
+}
+
 uint32_t getTemp() {
   readRawTemp();
-
-//  return accumulatedRawTemp; // uncomment for debug raw value
 
   // Temperature compensation using the chip voltage
   // with 3.0 V VCC is 1 lower than measured with 1.7 V VCC

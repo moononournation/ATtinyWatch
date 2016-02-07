@@ -162,8 +162,9 @@ uint32_t get_wdt_interrupt_count(); // debug use only
 // Voltage and Temperature related
 static uint16_t accumulatedRawVcc = 0;
 static uint16_t accumulatedRawTemp = 0;
-void readRawVcc();
+void readRawVcc(); // debug use only
 uint32_t getVcc();
-void readRawTemp();
+void readRawTemp(); // debug use only
+uint32_t getRawTemp();
 uint32_t getTemp();
 
