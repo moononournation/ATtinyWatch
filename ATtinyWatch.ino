@@ -1,13 +1,21 @@
+/*
+ * Latest source:
+ * https://github.com/moononournation/ATtinyWatch
+ */
 #include <avr/sleep.h>
 #include <TinyWireM.h>
 #include <EEPROM.h>
 #include "ssd1306.h"
 #include "WDT_Time.h"
 
-#define TIMEOUT 15000 // 15 seconds
-#define UNUSEDPIN 1
-#define SETBUTTON 3
-#define UPBUTTON  4
+#define TIMEOUT 3000 // 3 seconds
+#define UNUSEDPINA 1
+#define UNUSEDPINB 4
+#define BUTTONPIN  3
+
+#define SET_UP_BUTTON_THRESHOLD 100
+#define UP_DOWN_BUTTON_THRESHOLD 600
+#define PRESSED_BUTTON_THRESHOLD 1000
 
 // enum
 typedef enum {
@@ -32,12 +40,6 @@ typedef enum {
 SSD1306 oled;
 static uint32_t display_timeout = 0;
 static run_status_t run_status = normal;
-//#define COMPENSATE_BUTTON_PRESSED_TIME_GAP
-#ifdef COMPENSATE_BUTTON_PRESSED_TIME_GAP
-  static uint32_t set_button_pressed_time = 0;
-  static uint32_t up_button_pressed_time = 0;
-  static uint32_t button_last_handled_time = 0;
-#endif
 static display_mode_t display_mode = time_mode;
 static display_mode_t last_display_mode = time_mode;
 static bool time_changed = false;
@@ -45,9 +47,9 @@ static uint8_t selected_field = NO_FIELD;
 
 void setup() {
   // setup input pins, also pullup unused pin for power saving purpose
-  pinMode(UNUSEDPIN, INPUT_PULLUP);
-  pinMode(SETBUTTON, INPUT_PULLUP);
-  pinMode(UPBUTTON, INPUT_PULLUP);
+  pinMode(UNUSEDPINA, INPUT_PULLUP);
+  pinMode(UNUSEDPINB, INPUT_PULLUP);
+  pinMode(BUTTONPIN, INPUT_PULLUP);
 
   // init time
   init_time();
@@ -112,12 +114,13 @@ void draw_oled() {
   }
   oled.set_font_size(1);
   if (display_mode == time_mode) {
-    // 1st rows: print date
-    print_digit(0, 0, year(), (selected_field == YEAR_FIELD));
-    oled.write('-');
-    print_digit(5 * FONT_WIDTH, 0, month(), (selected_field == MONTH_FIELD));
-    oled.write('-');
-    print_digit(8 * FONT_WIDTH, 0, day(), (selected_field == DAY_FIELD));
+    // 1st row: print info
+    oled.set_pos(0, 0);
+    oled.print(getTemp() / 1000);
+    oled.draw_pattern(1, 0b00000010);
+    oled.draw_pattern(1, 0b00000101);
+    oled.draw_pattern(1, 0b00000010);
+    oled.write('C');
 
     // top right corner: battery status
     uint32_t vcc = getVcc();
@@ -130,18 +133,25 @@ void draw_oled() {
     oled.draw_pattern(1, 0b00111111);
     oled.draw_pattern(1, 0b00001100);
 
-    // 2nd-3th rows: print time
+    // 2nd row: print date
+    print_digit(7, 1, year(), (selected_field == YEAR_FIELD));
+    oled.write('-');
+    print_digit(7 + (5 * FONT_WIDTH), 1, month(), (selected_field == MONTH_FIELD));
+    oled.write('-');
+    print_digit(7 + (8 * FONT_WIDTH), 1, day(), (selected_field == DAY_FIELD));
+
+    // 3rd-4th rows: print time
     oled.set_font_size(2);
-    print_digit(0, 1, hour(), (selected_field == HOUR_FIELD));
-    oled.draw_pattern(2 * FONT_2X_WIDTH + 1, 1, 2, 2, 0b00011000);
-    print_digit(2 * FONT_2X_WIDTH + 5, 1, minute(), (selected_field == MINUTE_FIELD));
-    oled.draw_pattern(4 * FONT_2X_WIDTH + 6, 1, 2, 2, 0b00011000);
-    print_digit(4 * FONT_2X_WIDTH + 2 * FONT_WIDTH, 1, second(), (selected_field == SECOND_FIELD));
+    print_digit(0, 2, hour(), (selected_field == HOUR_FIELD));
+    oled.draw_pattern(2 * FONT_2X_WIDTH + 1, 2, 2, 2, 0b00011000);
+    print_digit(2 * FONT_2X_WIDTH + 5, 2, minute(), (selected_field == MINUTE_FIELD));
+    oled.draw_pattern(4 * FONT_2X_WIDTH + 6, 2, 2, 2, 0b00011000);
+    print_digit(4 * FONT_2X_WIDTH + 2 * FONT_WIDTH, 2, second(), (selected_field == SECOND_FIELD));
   } else if (display_mode == debug_mode) { // debug_mode
     print_debug_value(0, 'I', get_wdt_interrupt_count());
     print_debug_value(1, 'M', get_wdt_microsecond_per_interrupt());
     print_debug_value(2, 'V', getVcc());
-    print_debug_value(3, 'T', getTemp());
+    print_debug_value(3, 'T', getRawTemp());
   } // debug_mode
 }
 
@@ -162,53 +172,28 @@ void print_debug_value(uint8_t page, char initial, uint32_t value) {
 
 // PIN CHANGE interrupt event function
 ISR(PCINT0_vect) {
-#ifdef COMPENSATE_BUTTON_PRESSED_TIME_GAP
-  if (digitalRead(SETBUTTON) == LOW) { // SET button pressed
-    set_button_pressed_time = millis();
-  }
-  if (digitalRead(UPBUTTON) == LOW) { // SET button pressed
-    up_button_pressed_time = millis();
-  }
-#endif
   set_display_timeout(); // extent display timeout while user input
 }
 
 void check_button() {
-#ifdef COMPENSATE_BUTTON_PRESSED_TIME_GAP
-  bool set_button_down = (digitalRead(SETBUTTON) == LOW) || (set_button_pressed_time > button_last_handled_time);
-  bool up_button_down = (digitalRead(UPBUTTON) == LOW) || (up_button_pressed_time > button_last_handled_time);
-#else
-  bool set_button_down = (digitalRead(SETBUTTON) == LOW);
-  bool up_button_down = (digitalRead(UPBUTTON) == LOW);
-#endif
-  if (set_button_down || up_button_down) { // button down
+  int buttonValue = analogRead(BUTTONPIN);
+
+  if (buttonValue < PRESSED_BUTTON_THRESHOLD) { // button down
     set_display_timeout(); // extent display timeout while user input
 
     if (run_status == sleeping) {
       // wake_up if button pressed while sleeping
       wake_up();
     } else { // not sleeping
-      if (set_button_down) {
+      if (buttonValue > UP_DOWN_BUTTON_THRESHOLD) { // down button
+        handle_adjust_button_pressed(-1);
+      } else if (buttonValue > SET_UP_BUTTON_THRESHOLD) { // up button
+        handle_adjust_button_pressed(1);
+      } else { // set button
         handle_set_button_pressed();
-#ifdef COMPENSATE_BUTTON_PRESSED_TIME_GAP
-      } else if (set_button_pressed_time > 0) {
-        set_button_pressed_time = 0;
-#endif
-      }
-
-      if (up_button_down) {
-        handle_up_button_pressed();
-#ifdef COMPENSATE_BUTTON_PRESSED_TIME_GAP
-      } else if (up_button_pressed_time > 0) {
-        up_button_pressed_time = 0;
-#endif
       }
     } // not sleeping
   } // button down
-
-#ifdef COMPENSATE_BUTTON_PRESSED_TIME_GAP
-  button_last_handled_time = millis();
-#endif
 }
 
 void handle_set_button_pressed() {
@@ -224,39 +209,30 @@ void handle_set_button_pressed() {
   } // finish time adjustment
 }
 
-void handle_up_button_pressed() {
+void handle_adjust_button_pressed(long value) {
   if (selected_field == NO_FIELD) {
     // toggle display_mode if no field selected
     display_mode = (display_mode == time_mode) ? debug_mode : time_mode;
   } else {
-    uint16_t set_year = year();
-    uint8_t set_month = month();
-    uint8_t set_day = day();
-    uint8_t set_hour = hour();
-    uint8_t set_minute = minute();
-    uint8_t set_second = second();
-
+    long adjust_value;
     if (selected_field == YEAR_FIELD) {
-      set_year++; // add year
-      if (set_year > 2069) set_year = 1970; // loop back
+      // TODO: handle leap year and reverse value
+      adjust_value = value * SECS_PER_DAY * (leapYear(CalendarYrToTm(year())) ? 366 : 365);
     } else if (selected_field == MONTH_FIELD) {
-      set_month++; // add month
-      if (set_month > 12) set_month = 1; // loop back
+      // TODO: handle leap year and reverse value
+      adjust_value = value * SECS_PER_DAY * getMonthDays(CalendarYrToTm(year()), month());
     } else if (selected_field == DAY_FIELD) {
-      set_day++; // add day
-      if (set_day > getMonthDays(CalendarYrToTm(set_year), set_month)) set_day = 1; // loop back
+      // TODO: handle leap year and reverse value
+      adjust_value = value * SECS_PER_DAY;
     } else if (selected_field == HOUR_FIELD) {
-      set_hour++; // add hour
-      if (set_hour > 23) set_hour = 0; // loop back
+      adjust_value = value * SECS_PER_HOUR;
     } else if (selected_field == MINUTE_FIELD) {
-      set_minute++; // add minute
-      if (set_minute > 59) set_minute = 0; // loop back
+      adjust_value = value * SECS_PER_MIN;
     } else if (selected_field == SECOND_FIELD) {
-      set_second++; // add second
-      if (set_second > 59) set_second = 0; // loop back
+      adjust_value = value;
     }
 
-    setTime(set_hour, set_minute, set_second, set_day, set_month, set_year);
+    adjustTime(adjust_value);
     time_changed = true;
   }
 }

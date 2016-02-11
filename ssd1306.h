@@ -13,7 +13,7 @@
   #define SSD1306_I2C_ADDR 0x3C
 #endif
 
-// custom screen resolution by define SCREEN128X64, SCREEN128X32 or SCREED64X32 (default)
+// custom screen resolution by define SCREEN128X64, SCREEN128X32, SCREEN64X48 or SCREED64X32 (default)
 //#define SCREEN_128X64
 //#define SCREEN_128X32
 //#define SCREEN_64X48 // not tested

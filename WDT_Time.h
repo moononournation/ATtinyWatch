@@ -4,16 +4,46 @@
  * Ref.:
  * time function v1.4: https://github.com/PaulStoffregen/Time
  * WDT and power related: http://www.re-innovation.co.uk/web12/index.php/en/blog-75/306-sleep-modes-on-attiny85
+ * readVcc: http://forum.arduino.cc/index.php?topic=222847.0
+ * Internal temperature sensor: http://21stdigitalhome.blogspot.hk/2014/10/trinket-attiny85-internal-temperature.html
 */
 
 #define TIME_ADDR 0 // EEPROM address for storing the time you set, it can help restore the time easier after change the battery
 #define WDT_INTERVAL 6 // ~1 second
 #define DEFAULT_WDT_MICROSECOND 1000000UL // put your calibrated value here, should be within +/- 10000 of 1000000 microseconds
-#define VOLTAGE_REF 1113499UL // put your calibrated value here, should be within +/- 100k(~0.1 v) of 1125300UL (1.1 * 1023 * 1000)
+
+/* calibrate voltage reference
+ *  step 1: comment the follow 2 #define lines
+ *  step 2: program the watch
+ *  step 3: record the debug screen V reading and multimeter measured voltage
+ *  step 4: uncomment the follow 2 #define lines and fill the reading value
+ *  step 5: re-program the watch
+ */
+//#define DEBUG_SCREEN_V 4979 // put your screen reading here
+//#define MULTI_METER_VOLTAGE 4740 // put your multimeter reading here (in millivolt)
+#ifdef DEBUG_SCREEN_VOLTAGE // use calibrated value
+  #define 1125300UL / DEBUG_SCREEN_V * MULTI_METER_VOLTAGE
+#else // use default value
+  #define DEFAULT_VOLTAGE_REF 1125300UL // 1.1 * 1023 * 1000
+#endif
+
+/* calibrate temperature constant
+ *  step 1: record the debug screen T reading 2 times in different temperature condition
+ *  step 2: uncomment the follow 4 #define lines and fill the values
+ */
+//#define DEBUG_SCREEN_T_1  21823L
+//#define TEMPERATURE_1     52000L
+//#define DEBUG_SCREEN_T_2  18757L
+//#define TEMPERATURE_2     12000L
+#ifdef DEBUG_SCREEN_T_1 // use calibrated value
+  #define CHIP_TEMP_COEFF ((DEBUG_SCREEN_T_1 - DEBUG_SCREEN_T_2) * 100000L / (TEMPERATURE_1 - TEMPERATURE_2))
+  #define CHIP_TEMP_OFFSET ((DEBUG_SCREEN_T_1 * 100000L) - (TEMPERATURE_1 * CHIP_TEMP_COEFF))
+#else // use default value
+  #define CHIP_TEMP_COEFF 6880L // 64 raw samples, 1.075 * 64 * 10000
+  #define CHIP_TEMP_OFFSET 1746560000L // 64 raw samples, 272.9 *64 * 10000
+#endif
 // Calibration of the temperature sensor has to be changed for your own ATtiny85
 // per tech note: http://www.atmel.com/Images/doc8108.pdf
-#define CHIP_TEMP_OFFSET 291725L // put your calibrated value here
-#define CHIP_TEMP_COEFF 1075L // put your calibrated value here
 
 #ifndef _Time_h
 #ifdef __cplusplus
@@ -128,6 +158,7 @@ extern "C++" {
   uint16_t year();            // the full four digit year: (2009, 2010 etc)
   uint16_t year(time_t t);    // the year for the given time
 
+  bool leapYear(uint16_t y);
   uint8_t getMonthDays(uint16_t y, uint8_t m);
 
   time_t  now();              // return the current time as seconds since Jan 1 1970
@@ -166,5 +197,5 @@ void readRawVcc(); // debug use only
 uint32_t getVcc();
 void readRawTemp(); // debug use only
 uint32_t getRawTemp();
-uint32_t getTemp();
+int32_t getTemp();
 

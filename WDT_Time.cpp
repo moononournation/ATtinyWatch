@@ -275,14 +275,11 @@ void setup_watchdog(uint8_t ii) {
   WDTCR |= _BV(WDIE);
   sbi(GIMSK, PCIE); // Turn on Pin Change interrupts (Tell Attiny85 we want to use pin change interrupts (can be any pin))
   sbi(PCMSK, PCINT3);
-  sbi(PCMSK, PCINT4);
+  //sbi(PCMSK, PCINT4);
   sei();    // Enable the Interrupts
 }
 
 void init_time() {
-  // init WDT
-  setup_watchdog(WDT_INTERVAL);
-
   time_t t;
   EEPROM.get(TIME_ADDR, t);
   if (t < 1451606400) t = 1451606400; // 2016-01-01
@@ -293,6 +290,9 @@ void init_time() {
   if ((temp_microsecond_per_interrupt >= 950000UL) && (temp_microsecond_per_interrupt <= 1050000UL)) {
     wdt_microsecond_per_interrupt = temp_microsecond_per_interrupt;
   }
+
+  // init WDT
+  setup_watchdog(WDT_INTERVAL);
 }
 
 // WDT interrupt event function
@@ -382,8 +382,7 @@ void readRawVcc() {
 
 uint32_t getVcc() {
   readRawVcc();
-
-  return VOLTAGE_REF / (accumulatedRawVcc >> 6); // calibrated value, average Vcc in millivolts
+  return DEFAULT_VOLTAGE_REF / (accumulatedRawVcc >> 6); // calibrated value, average Vcc in millivolts
 }
 
 void readRawTemp() {
@@ -399,7 +398,7 @@ uint32_t getRawTemp() {
   return accumulatedRawTemp;
 }
 
-uint32_t getTemp() {
+int32_t getTemp() {
   readRawTemp();
 
   // Temperature compensation using the chip voltage
@@ -407,6 +406,6 @@ uint32_t getTemp() {
   uint32_t vcc = getVcc();
   uint16_t compensation = (vcc < 1700) ? 0 : ( (vcc > 3000) ? 1000 : (vcc - 1700) * 10 / 13);
 
-  return ((((accumulatedRawTemp >> 3) * 125L) - CHIP_TEMP_OFFSET) * 1000L / CHIP_TEMP_COEFF) + compensation;
+  return (((accumulatedRawTemp * 100000L) - CHIP_TEMP_OFFSET) / CHIP_TEMP_COEFF) + compensation;
 }
 
