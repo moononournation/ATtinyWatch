@@ -7,20 +7,6 @@
 #include <TinyWireM.h>
 #include "ssd1306.h"
 
-#ifndef FONT_2X_WIDTH
-  #define FONT_2X_WIDTH 0
-  #define FONT_2X_RANGE_START 0
-  #define FONT_2X_RANGE_END 0
-  static const uint8_t font_2x_bitmap[] PROGMEM = {};
-#endif
-
-#ifndef FONT_3X_WIDTH
-  #define FONT_3X_WIDTH 0
-  #define FONT_3X_RANGE_START 0
-  #define FONT_3X_RANGE_END 0
-  static const uint8_t font_3x_bitmap[] PROGMEM = {};
-#endif
-
 /*
  * Software Configuration, data sheet page 64
  */
@@ -182,16 +168,20 @@ void SSD1306::set_font_size(uint8_t set_size) {
     font_volume = 1 * FONT_WIDTH;
     ascii_code_start = FONT_RANGE_START;
     ascii_code_end = FONT_RANGE_END;
+#ifdef FONT_2X_WIDTH
   } else if (set_size == 2) {
     font_width = FONT_2X_WIDTH;
     font_volume = 2 * FONT_2X_WIDTH;
     ascii_code_start = FONT_2X_RANGE_START;
     ascii_code_end = FONT_2X_RANGE_END;
-  } else { // (font_size == 3)
+#endif
+#ifdef FONT_3X_WIDTH
+  } else if (set_size == 3) {
     font_width = FONT_3X_WIDTH;
     font_volume = 3 * FONT_3X_WIDTH;
     ascii_code_start = FONT_3X_RANGE_START;
     ascii_code_end = FONT_3X_RANGE_END;
+#endif
   }
 }
 
@@ -208,10 +198,14 @@ size_t SSD1306::write(uint8_t c) {
   {
     if (font_size == 1) {
       data = pgm_read_byte_near(&font_bitmap[offset++]);      
+#ifdef FONT_2X_WIDTH
     } else if (font_size == 2) {
-      data = pgm_read_byte_near(&font_2x_bitmap[offset++]);      
-    } else { // (font_size == 3)
+      data = pgm_read_byte_near(&font_2x_bitmap[offset++]);
+#endif
+#ifdef FONT_3X_WIDTH
+    } else if (font_size == 3) {
       data = pgm_read_byte_near(&font_3x_bitmap[offset++]);
+#endif
     }
     if (invert_color) data = ~ data; // invert
     ssd1306_send_data_byte(data);

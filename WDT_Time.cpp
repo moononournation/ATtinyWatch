@@ -313,7 +313,9 @@ ISR(WDT_vect) {
 
 void wdt_auto_tune() {
   // skip tuning for the first input after power on
-  if (prev_sysTime > 0) {
+  if (prev_sysTime == 0) {
+        prev_sysTime = sysTime - (millis() / 1000); // init prev_sysTime
+  } else {
     // check only tune the time if it have pass enough time range (> 1 hour)
     if (wdt_interrupt_count > 3600) {
       // calculation equation: wdt_microsecond_per_interrupt = (sysTime - prev_sysTime) / wdt_interrupt_count * 1,000,000 micro second
@@ -327,8 +329,6 @@ void wdt_auto_tune() {
       wdt_interrupt_count = 0;
       prev_sysTime = sysTime;
     }
-  } else {
-    prev_sysTime = sysTime;
   }
   EEPROM.put(TIME_ADDR, sysTime);
   delay(5); // wait EEPROM write finish

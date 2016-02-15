@@ -19,8 +19,8 @@
  *  step 4: uncomment the follow 2 #define lines and fill the reading value
  *  step 5: re-program the watch
  */
-//#define DEBUG_SCREEN_V 4979 // put your screen reading here
-//#define MULTI_METER_VOLTAGE 4740 // put your multimeter reading here (in millivolt)
+#define DEBUG_SCREEN_V 4979 // put your screen reading here
+#define MULTI_METER_VOLTAGE 4740 // put your multimeter reading here (in millivolt)
 #ifdef DEBUG_SCREEN_VOLTAGE // use calibrated value
   #define 1125300UL / DEBUG_SCREEN_V * MULTI_METER_VOLTAGE
 #else // use default value
@@ -31,10 +31,10 @@
  *  step 1: record the debug screen T reading 2 times in different temperature condition
  *  step 2: uncomment the follow 4 #define lines and fill the values
  */
-//#define DEBUG_SCREEN_T_1  21823L
-//#define TEMPERATURE_1     52000L
-//#define DEBUG_SCREEN_T_2  18757L
-//#define TEMPERATURE_2     12000L
+#define DEBUG_SCREEN_T_1  23207L
+#define TEMPERATURE_1     36000L
+#define DEBUG_SCREEN_T_2  20286L
+#define TEMPERATURE_2     22500L
 #ifdef DEBUG_SCREEN_T_1 // use calibrated value
   #define CHIP_TEMP_COEFF ((DEBUG_SCREEN_T_1 - DEBUG_SCREEN_T_2) * 100000L / (TEMPERATURE_1 - TEMPERATURE_2))
   #define CHIP_TEMP_OFFSET ((DEBUG_SCREEN_T_1 * 100000L) - (TEMPERATURE_1 * CHIP_TEMP_COEFF))
