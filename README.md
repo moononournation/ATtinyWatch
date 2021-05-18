@@ -1,8 +1,8 @@
 # ATtinyWatch
 ATtiny85 Watch Core
 
-![Prototype](https://cdn.instructables.com/FUG/98WA/IIM1V9D2/FUG98WAIIM1V9D2.RECTANGLE1.jpg)
-![Prototype](https://cdn.instructables.com/F7Y/XUDD/IKH5GSX6/F7YXUDDIKH5GSX6.RECTANGLE1.jpg)
+![Prototype](https://content.instructables.com/ORIG/FDE/7JXR/IILZRAY9/FDE7JXRIILZRAY9.jpg?auto=webp&crop=1.2%3A1&frame=1&width=306)
+![Prototype](https://content.instructables.com/ORIG/FUG/98WA/IIM1V9D2/FUG98WAIIM1V9D2.jpg?auto=webp&crop=1.2%3A1&frame=1&width=306)
 
 Please find more details at instructables:
 
